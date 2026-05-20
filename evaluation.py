@@ -20,31 +20,55 @@ from pre_process import run as preprocess_run
 
 def depth_metrics(pred: np.ndarray, gt: np.ndarray,
                   min_depth: float = 1.0, max_depth: float = 80.0) -> Dict[str, float]:
-    """Standard monocular/stereo depth metrics on a single (pred, gt) pair.
+    """Standard monocular/stereo depth metrics with valid density tracking."""
+    # 1. Base mask: Where ground truth is actually valid
+    gt_mask = (gt > min_depth) & (gt < max_depth)
+    n_gt = int(gt_mask.sum())
+    
+    if n_gt == 0:
+        return {k: float("nan") for k in 
+                ("abs_rel", "sq_rel", "rmse", "rmse_log", "log10", "d1", "d2", "d3", "fill_rate")} | {"n_valid": 0}
 
-    Uses only pixels where both pred and gt fall in [min_depth, max_depth].
-    Returns a dict with abs_rel, sq_rel, rmse, rmse_log, log10, d1/d2/d3, n_valid.
-    """
-    mask = (gt > min_depth) & (gt < max_depth) & (pred > min_depth) & (pred < max_depth)
-    n = int(mask.sum())
+    # 2. Check where the prediction failed to output valid depth (e.g., <= 0 or <= min_depth)
+    # OpenStereo/KITTI convention: penalize invalid predictions within the GT mask
+    valid_pred_mask = (pred > min_depth) & (pred < max_depth)
+    
+    # Calculate density/fill rate before clipping/fixing arrays
+    fill_rate = float((gt_mask & valid_pred_mask).sum() / n_gt)
+
+    # 3. For a strict evaluation, evaluate on pixels where BOTH are valid
+    # But keep an eye on 'fill_rate' to see how much data BM threw away!
+    eval_mask = gt_mask & valid_pred_mask
+    n = int(eval_mask.sum())
+    
     if n == 0:
-        return {k: float("nan") for k in
-                ("abs_rel", "sq_rel", "rmse", "rmse_log", "log10", "d1", "d2", "d3")} | {"n_valid": 0}
-    p = pred[mask].astype(np.float64)
-    g = gt[mask].astype(np.float64)
+        return {k: float("nan") for k in 
+                ("abs_rel", "sq_rel", "rmse", "rmse_log", "log10", "d1", "d2", "d3")} | {"fill_rate": fill_rate, "n_valid": 0}
+
+    p = pred[eval_mask].astype(np.float64)
+    g = gt[eval_mask].astype(np.float64)
+    
     diff = p - g
     rel = np.maximum(p / g, g / p)
+    
+    # 4. Outlier ratio (Percentage of pixels with error > 3 meters or > 10% relative error)
+    # This represents the classic KITTI 'D1' outlier metric
+    bad_3m = float(np.mean(np.abs(diff) > 3.0))
+
     return {
-        "abs_rel":  float(np.mean(np.abs(diff) / g)),
-        "sq_rel":   float(np.mean(diff * diff / g)),
-        "rmse":     float(np.sqrt(np.mean(diff * diff))),
-        "rmse_log": float(np.sqrt(np.mean((np.log(p) - np.log(g)) ** 2))),
-        "log10":    float(np.mean(np.abs(np.log10(p) - np.log10(g)))),
-        "d1":       float(np.mean(rel < 1.25)),
-        "d2":       float(np.mean(rel < 1.25 ** 2)),
-        "d3":       float(np.mean(rel < 1.25 ** 3)),
-        "n_valid":  n,
+        "abs_rel":   float(np.mean(np.abs(diff) / g)),
+        "sq_rel":    float(np.mean(diff * diff / g)),
+        "rmse":      float(np.sqrt(np.mean(diff * diff))),
+        "rmse_log":  float(np.sqrt(np.mean((np.log(p) - np.log(g)) ** 2))),
+        "log10":     float(np.mean(np.abs(np.log10(p) - np.log10(g)))),
+        "d1":        float(np.mean(rel < 1.25)),
+        "d2":        float(np.mean(rel < 1.25 ** 2)),
+        "d3":        float(np.mean(rel < 1.25 ** 3)),
+        "bad_3m":    bad_3m,         # New metric: lower is better
+        "fill_rate": fill_rate,      # New metric: higher is better (SGBM will dominate here)
+        "n_valid":   n,
     }
+
 
 
 # ---- epipolar / rectification quality --------------------------------------
@@ -121,7 +145,8 @@ def _evaluate_one(args) -> Optional[Dict[str, float]]:
 
 def aggregate(results: List[Dict[str, float]]) -> Dict[str, float]:
     """Weighted mean of depth metrics by n_valid; simple mean of epipolar metrics."""
-    depth_keys = ("abs_rel", "sq_rel", "rmse", "rmse_log", "log10", "d1", "d2", "d3")
+    # Added fill_rate and bad_3m to the depth metrics list for proper tracking
+    depth_keys = ("fill_rate", "bad_3m", "abs_rel", "sq_rel", "rmse", "rmse_log", "log10", "d1", "d2", "d3")
     epi_keys   = ("epi_mean_dy", "epi_median_dy", "epi_p1", "epi_p2", "epi_p3", "epi_sampson_rect")
     agg: Dict[str, float] = {}
     weights = np.array([r.get("n_valid", 0) for r in results], dtype=np.float64)
@@ -137,6 +162,7 @@ def aggregate(results: List[Dict[str, float]]) -> Dict[str, float]:
     agg["n_pairs"]     = int(len(results))
     agg["total_valid"] = int(total_w)
     return agg
+
 
 
 def run(pairs: List[Tuple[Path, Path]], pred_dir: Path, gt_dir: Path,
@@ -175,15 +201,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def print_summary(agg: Dict[str, float]) -> None:
-    print("\n--- Depth metrics (lower is better, δ higher is better) ---")
-    for k in ("abs_rel", "sq_rel", "rmse", "rmse_log", "log10", "d1", "d2", "d3"):
+    print("\n--- Depth metrics ---")
+    # Included fill_rate and bad_3m in the terminal loop
+    for k in ("fill_rate", "bad_3m", "abs_rel", "sq_rel", "rmse", "rmse_log", "log10", "d1", "d2", "d3"):
         print(f"  {k:<10s}: {agg[k]:.4f}")
     print("\n--- Epipolar / rectification quality ---")
     for k in ("epi_mean_dy", "epi_median_dy", "epi_p1", "epi_p2", "epi_p3", "epi_sampson_rect"):
         v = agg.get(k, float("nan"))
-        print(f"  {k:<18s}: {v:.4f}")
-    print(f"\n  pairs evaluated   : {agg['n_pairs']}")
-    print(f"  valid depth pixels: {agg['total_valid']}")
+        print(f"  {k:<17s}: {v:.4f}")
+
 
 
 def main() -> None:
