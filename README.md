@@ -2,7 +2,7 @@
 
 ## Introduction
 
-
+A modular toolkit that can pre-process stereo RGB images, run stereo depth estimation, and evaluate the predicted depth of different stereo vision methods on the KITTI dataset by comparing against ground truth depth provided.  
 
 ### Pipeline flow
 
@@ -54,9 +54,6 @@ flowchart LR
 | Left RGB | Ground-truth depth | Predicted depth |
 |:---:|:---:|:---:|
 | ![Left RGB](assets/sample_rgb.jpg) | ![Ground-truth depth](assets/sample_gt_depth.png) | ![Predicted depth](assets/sample_pred_depth.png) |
-
-Concise, modular toolkit that computes depth maps for the KITTI-style stereo data
-under `Data/` and evaluates them against the provided ground truth.
 
 
 
