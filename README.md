@@ -2,7 +2,7 @@
 
 ## Introduction
 
-A modular toolkit that can pre-process stereo RGB images, run stereo depth estimation, and evaluate the predicted depth of different stereo vision methods on the KITTI dataset by comparing against ground truth depth provided.  
+A modular toolkit that can pre-process stereo RGB images, run stereo depth estimation, and evaluate the predicted depth of different stereo vision methods on the KITTI dataset by comparing against ground truth depth provided. The evaluator outputs both a file containing multiple individual and aggregated performance metrics (details of metrics are present near the end of the README.)
 
 ### Pipeline flow
 
@@ -25,7 +25,7 @@ flowchart LR
     L --> P
     R --> P
     P --> PAIRS
-    P -. "--save" .-> PP
+    P -. "--save" .-> Grayscale Images
 
     PAIRS --> D
     C --> D
@@ -56,6 +56,10 @@ flowchart LR
 | ![Left RGB](assets/sample_rgb.jpg) | ![Ground-truth depth](assets/sample_gt_depth.png) | ![Predicted depth](assets/sample_pred_depth.png) |
 
 
+### Sample Performance Comparison of Different Depth Estimation Models
+The following plots show the comparison between Block Matching (BM) and Semi Global Block Matching (SGBM) as stereo depth estimation algorrithms on our dataset with analysis using 4 metrics (RMSE, outlier ratio, fill ratio and time to execute).
+
+![Performance Comparison](assets/stereo_benchmark_comparison.png)
 
 ## Install
 
@@ -70,7 +74,7 @@ supports `--parallel` (process pool over pairs) and `--workers N`.
 
 | File | Purpose |
 |---|---|
-| `pre_process.py`     | Match timestamps, dedupe, validate pairs. `--save` to also write grayscale copies. |
+| `pre_process.py`     | Match timestamps, deduplicate, validate pairs. `--save` to also write grayscale copies. |
 | `depth_estimation.py`| Disparity → depth using `P_rect_101` (intrinsics) and `|T_103[0]|` (baseline). Stereo matchers live in a name-keyed registry; current entries: **`sgbm`** (default) and **`bm`**. Writes 16-bit PNGs in KITTI format. |
 | `evaluation.py`      | Standard depth metrics (AbsRel, SqRel, RMSE, RMSE-log, log10, δ<1.25^k) plus epipolar-rectification quality from ORB matches (mean / median \|Δy\|, inlier fractions, Sampson residual). |
 | `pipeline.py`        | Orchestrator. Selects stages and chooses sequential vs parallel execution. |
@@ -203,8 +207,11 @@ Depth metrics are weighted by the per-image valid-pixel count when aggregated.
 Epipolar metrics are simple means across pairs that returned ≥ 8 matches.
 
 
+
 | Field              | Where           | Units / Range       | Lower / Higher better | Meaning |
 |--------------------|-----------------|---------------------|-----------------------|---------|
+| `fill_rate`        | both            | [0, 1]              | higher                | Density/Fill Rate: fraction of valid ground-truth pixels where the algorithm successfully predicted a valid depth. |
+| `bad_3m`           | both            | [0, 1]              | lower                 | Outlier Ratio: fraction of evaluated pixels where the absolute depth error exceeds 3.0 meters (`\|pred − gt\| > 3.0`). |
 | `abs_rel`          | both            | unitless, ≥ 0       | lower                 | Absolute Relative Error: mean of `\|pred − gt\| / gt`. |
 | `sq_rel`           | both            | metres (or unitless)| lower                 | Squared Relative Error: mean of `(pred − gt)² / gt`. |
 | `rmse`             | both            | metres, ≥ 0         | lower                 | Root Mean Squared Error: `√mean((pred − gt)²)`. |
@@ -224,4 +231,5 @@ Epipolar metrics are simple means across pairs that returned ≥ 8 matches.
 | `name`             | `per_pair` only | string              | —                     | Target filename of the left RGB image frame. |
 | `n_pairs`          | `aggregate` only| count (int)         | —                     | Total number of stereo image pairs successfully evaluated in the dataset split. |
 | `total_valid`      | `aggregate` only| count (int)         | —                     | Accumulated sum of valid depth pixels evaluated across the entire sequence. |
+
 
