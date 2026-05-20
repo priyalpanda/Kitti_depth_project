@@ -1,5 +1,7 @@
 # KITTI Stereo Depth Estimation
 
+## Introduction
+
 
 
 ### Pipeline flow
@@ -56,13 +58,7 @@ flowchart LR
 Concise, modular toolkit that computes depth maps for the KITTI-style stereo data
 under `Data/` and evaluates them against the provided ground truth.
 
-```
-Data/
-├── left-image-half-size/  left-image-half-size/   *.jpg   (879x400, rectified)
-├── right-image-half-size/ right-image-half-size/  *.jpg
-├── half-image-calib/      half-image-calib/       <session>.txt
-└── depth-map-half-size/   depth-map-half-size/    <session>/*.png   (uint16, depth_m = px/256)
-```
+
 
 ## Install
 
@@ -100,6 +96,17 @@ python pipeline.py --algorithm bm --mode parallel        # swap in a different s
 python pre_process.py        --parallel --save           # validate + write grayscale pairs
 python depth_estimation.py   --parallel                  # write predicted depths
 python evaluation.py         --parallel                  # write Data/evaluation-report.json
+```
+
+## Inputs
+
+The inputs are expected to be in the Data folder with the following structure (if default paths are used)
+```
+Data/
+├── left-image-half-size/  left-image-half-size/   *.jpg   (879x400, rectified)
+├── right-image-half-size/ right-image-half-size/  *.jpg
+├── half-image-calib/      half-image-calib/       <session>.txt
+└── depth-map-half-size/   depth-map-half-size/    <session>/*.png   (uint16, depth_m = px/256)
 ```
 
 ## Outputs
