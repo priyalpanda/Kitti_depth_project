@@ -1,33 +1,6 @@
 # KITTI Stereo Depth Estimation
 
-Concise, modular toolkit that computes depth maps for the KITTI-style stereo data
-under `Data/` and evaluates them against the provided ground truth.
 
-```
-Data/
-├── left-image-half-size/  left-image-half-size/   *.jpg   (879x400, rectified)
-├── right-image-half-size/ right-image-half-size/  *.jpg
-├── half-image-calib/      half-image-calib/       <session>.txt
-└── depth-map-half-size/   depth-map-half-size/    <session>/*.png   (uint16, depth_m = px/256)
-```
-
-## Install
-
-```bash
-pip install -r requirements.txt
-```
-
-## Modules
-
-Each file can be run on its own *or* imported from `pipeline.py`. Every stage
-supports `--parallel` (process pool over pairs) and `--workers N`.
-
-| File | Purpose |
-|---|---|
-| `pre_process.py`     | Match timestamps, dedupe, validate pairs. `--save` to also write grayscale copies. |
-| `depth_estimation.py`| Disparity → depth using `P_rect_101` (intrinsics) and `|T_103[0]|` (baseline). Stereo matchers live in a name-keyed registry; current entries: **`sgbm`** (default) and **`bm`**. Writes 16-bit PNGs in KITTI format. |
-| `evaluation.py`      | Standard depth metrics (AbsRel, SqRel, RMSE, RMSE-log, log10, δ<1.25^k) plus epipolar-rectification quality from ORB matches (mean / median \|Δy\|, inlier fractions, Sampson residual). |
-| `pipeline.py`        | Orchestrator. Selects stages and chooses sequential vs parallel execution. |
 
 ### Pipeline flow
 
@@ -74,6 +47,43 @@ flowchart LR
 
 `pipeline.py` is the orchestrator that calls the three stages in order; `--stages` lets you run any subset and `--mode {sequential,parallel}` controls how each stage iterates over pairs. Each stage is also runnable directly (`python pre_process.py`, `python depth_estimation.py`, `python evaluation.py`).
 
+### Sample Input, Ground Truth and Prediction
+
+| Left RGB | Ground-truth depth | Predicted depth |
+|:---:|:---:|:---:|
+| ![Left RGB](assets/sample_rgb.jpg) | ![Ground-truth depth](assets/sample_gt_depth.png) | ![Predicted depth](assets/sample_pred_depth.png) |
+
+Concise, modular toolkit that computes depth maps for the KITTI-style stereo data
+under `Data/` and evaluates them against the provided ground truth.
+
+```
+Data/
+├── left-image-half-size/  left-image-half-size/   *.jpg   (879x400, rectified)
+├── right-image-half-size/ right-image-half-size/  *.jpg
+├── half-image-calib/      half-image-calib/       <session>.txt
+└── depth-map-half-size/   depth-map-half-size/    <session>/*.png   (uint16, depth_m = px/256)
+```
+
+## Install
+
+```bash
+pip install -r requirements.txt
+```
+
+## Modules
+
+Each file can be run on its own *or* imported from `pipeline.py`. Every stage
+supports `--parallel` (process pool over pairs) and `--workers N`.
+
+| File | Purpose |
+|---|---|
+| `pre_process.py`     | Match timestamps, dedupe, validate pairs. `--save` to also write grayscale copies. |
+| `depth_estimation.py`| Disparity → depth using `P_rect_101` (intrinsics) and `|T_103[0]|` (baseline). Stereo matchers live in a name-keyed registry; current entries: **`sgbm`** (default) and **`bm`**. Writes 16-bit PNGs in KITTI format. |
+| `evaluation.py`      | Standard depth metrics (AbsRel, SqRel, RMSE, RMSE-log, log10, δ<1.25^k) plus epipolar-rectification quality from ORB matches (mean / median \|Δy\|, inlier fractions, Sampson residual). |
+| `pipeline.py`        | Orchestrator. Selects stages and chooses sequential vs parallel execution. |
+
+
+
 ## Quick start (end-to-end)
 
 ```bash
@@ -98,11 +108,7 @@ python evaluation.py         --parallel                  # write Data/evaluation
 * `Data/pre-processed-images/{left,right}/*.jpg` — only created with `--save` / `--save-preproc`.
 * `Data/evaluation-report.json` — aggregate metrics, per-pair scores, and stage timings.
 
-### Sample
 
-| Left RGB | Ground-truth depth | Predicted depth |
-|:---:|:---:|:---:|
-| ![Left RGB](assets/sample_rgb.jpg) | ![Ground-truth depth](assets/sample_gt_depth.png) | ![Predicted depth](assets/sample_pred_depth.png) |
 
 ## Notes on calibration
 
