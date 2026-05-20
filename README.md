@@ -59,7 +59,8 @@ flowchart LR
 ### Sample Performance Comparison of Different Depth Estimation Models
 The following plots show the comparison between Block Matching (BM) and Semi Global Block Matching (SGBM) as stereo depth estimation algorrithms on our dataset with analysis using 4 metrics (RMSE, outlier ratio, fill ratio and time to execute).
 
-![Performance Comparison](assets/stereo_benchmark_comparison.png)
+<img src="assets/stereo_benchmark_comparison.png" alt="Performance Comparison" width="50%" height="50%"/>
+
 
 ## Install
 
