@@ -25,7 +25,7 @@ flowchart LR
     L --> P
     R --> P
     P --> PAIRS
-    P -. "--save" .-> Grayscale Images
+    P -. "--save" .-> GrayscaleImages
 
     PAIRS --> D
     C --> D
