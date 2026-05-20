@@ -236,3 +236,7 @@ Epipolar metrics are simple means across pairs that returned ≥ 8 matches.
 | `total_valid`      | `aggregate` only| count (int)         | —                     | Accumulated sum of valid depth pixels evaluated across the entire sequence. |
 
 
+## Acknowledgment
+- Use of AI, in particular Gemini for deciding what evaluation metrics would fit best
+- Codex for quick code generation. However, **following are my own efforts**: what the pipeline should look like, the outline of code, what is required in pre-processing, how should the modular architecture look like, what goes into and comes out of the architecture, enabling multi-threading and multi-algoritm evaluation. Also the comparison of performance is my effort.
+- Notes from the KITTI website https://www.cvlibs.net/datasets/kitti/
